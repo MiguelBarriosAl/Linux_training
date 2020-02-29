@@ -1,0 +1,168 @@
+CÓDIGO:
+Generate_Data.sh
+
+#!/bin/bash
+############################################
+# Coge de la linea de comando el string para generar un fichero
+# de salida que lleve ese nombre.
+# Este script escribe un numero de lineas entre 500 y 1500
+# (variable también cogida del comando). Cada linea debe
+# contener entre 35 y 85 carácteres (incluyendo digitos
+# y caracteres especiales), elegidos al azar. Formando
+# palabaras, de longitud entre 1 y el max de la línea,
+# con separador el carácter blanco, situado también aleatoriamente.
+# Este script también genera un log en el mismo directorio
+# por cada linea de salida, se escribe una linea en el log con
+# fecha y hora, longitud final de la línea y numero total de caracteres
+# no blancos
+############################################
+#Se comprueba que el numero de argumentos sea 2
+if [ $# -ne 2 ];
+then
+echo -e "Numero de argumentos erróneo." 
+echo -e "Ha de contener el nombre del fichero de salida y numero"
+echo -e "de lineas entre 500 y 1500\n"
+exit 1
+fi
+#Se comprueba que el argumento 2 se encuentre entre 500 y 1500
+if [ $2 -lt 500 ];
+then
+echo -e "Argumento 2 Erroneo. Ha de ser un valor entre 500 y 1500" 
+exit 1
+fi
+if [ $2 -gt 1500 ];
+then
+echo -e "Argumento 2 Erroneo. Ha de ser un valor entre 500 y 1500" 
+exit 1
+fi
+#################################################
+# Funcion escribir_fichero
+# Argumentos 
+# 
+# Funcionalidad
+# Crea lineas de caracteres de longitud aleatoria entre
+# 35 y 85 caracteres. Además separa los caracteres de cada
+# linea en palabras de longitud aleatoria entre 1 y la longitud
+# de la linea
+# 
+#################################################
+function escribir_fichero {
+#Se establece la longitud de la linea
+long_linea=$[ ( $RANDOM % 50 ) + 35 ]
+#echo "longitud de linea", $long_linea
+linea=$long_linea
+palabra_aleat=""
+#Bucle en el que se van creando las palabras
+#Mientras la longitud de la linea sea mayor que 0, se pueden hacer palabras
+while [ "$linea" -gt 0 ]
+do
+#Tamano de la palabra entre 1 y la longitud de linea
+long_palabra=$[ (( $RANDOM % $linea )+1) ]
+#Se transcriben los caracteres obtenidos aleatoriamente de su valor ascii
+#a su representacion
+for (( i=0; i<long_palabra; i++ ))
+do
+letra=$((( $RANDOM % 95 )+32))
+#Si el caracter es un * se sustituye porque es un caracter problematico
+if (($letra==42))
+then
+letra=$(($letra+1))
+fi
+
+#Si el caracter es un \ se sustituye porque es un caracter problematico
+if (($letra==92))
+then
+letra=$(($letra+1))
+fi
+aux=$(printf \\$(printf "%o" $letra))
+#Se va generando la palabra
+palabra_aleat="${palabra_aleat}${aux}"
+# palabra_aleat=${palabra_aleat}$(printf \\$(printf "%o" $letra))
+done
+#Las palabras se van uniendo separadas por espacios en blanco
+palabra_aleat=${palabra_aleat}" "
+#La longitud de la linea disminuye en funcion del tamano de la palabra
+linea=$((linea-long_palabra))
+done
+#La linea generada es el resultado de la funcion
+echo $palabra_aleat
+}
+# Se crean los ficheros de resultados
+touch $1
+touch Log_generate.txt
+linea_log=""
+# Se llama a la funcion de crear lineas "escribir_fichero" tantas veces
+# como el usuario haya indicado en su segundo argumento
+for (( i=0; i<$2; i++ ))
+do 
+escritura=$(escribir_fichero)
+#Se escribe cada linea generada al final del fichero
+#especificado por el usuario en el argumento 1
+echo $escritura >> $1
+#La ultima linea escrita se almacena para su procesamiento
+linea_entera=$(tail -1 $1)
+
+#Se cuentan caracteres, con y sin blancos y se escribe la info
+#de la linea en el fichero de log
+num_caracteres_linea_blancos=$(echo -n $linea_entera | wc -c)
+linea_entera=$(echo -e "$linea_entera\n" | sed 's/ //g')
+DIA=$(date +"%d/%m/%Y")
+HORA=$(date +"%H:%M:%S")
+num_caracteres_linea_no_blancos=$(echo -n $linea_entera | wc -c)
+linea_log="${DIA} ${HORA} Longitud linea ${num_caracteres_linea_blancos} Longitud sin blancos ${num_caracteres_linea_no_blancos}"
+echo $linea_log >> Log_generate.txt
+done
+
+
+Process_data.sh
+
+#!/bin/bash
+############################################
+# Lee el fichero previamente construido.
+# De cada linea del input, carga strings de longitud
+# fija de 8 carácteres, eliminado los blancos si 
+# esos blancos pillan al inicio, final o en medio de un string.
+# Escribe un fichero de salida, con los strings 
+# bien encolumnados.
+# Escribe un log: en cada linea del log, fecha y hora,
+# numero de caracteres leidos en una linea y numero de
+# strings generados.
+############################################
+palabra_vacia=""
+palabra_completa=""
+touch Process.txt
+num_de_strings=0
+linea_log=""
+num_caracteres_linea=0
+
+while read line
+do
+num_de_strings=0
+# Cuenta de caracteres de cada linea para el log
+num_caracteres_linea=$(echo -n $line | wc -c)
+#Se eliminan blancos y el backlash invertido \ se cambia por guion bajo
+#Se hace para evitar el efecto del echo\
+line=$(echo -e "$line\n" | sed -e 's/\\/_/g' | sed 's/ //g')
+#Se seleccionan los 8 primeros caracteres de la linea
+palabra_completa=${palabra_completa}" "${line:0:8}
+#se almacena el resto de la linea desde el caracter 8
+nueva=${line:8}
+#Se actualiza el numero de strings creados para el log
+num_de_strings=1
+# Se repite el proceso mientras haya linea que procesar
+while [ "$nueva" != "$palabra_vacia" ]
+do
+palabra=${nueva:0:8}
+nueva=${nueva:8}
+palabra_completa="${palabra_completa} ${palabra}"
+num_de_strings=$(($num_de_strings + 1))
+done
+#Se escriben los resultados y el log con fecha y hora
+echo -e $palabra_completa >> Process.txt
+DIA=$(date +"%d/%m/%Y")
+HORA=$(date +"%H:%M:%S")
+
+linea_log="${DIA} ${HORA} Numero de caracteres inicial ${num_caracteres_linea} Numero de strings generados ${num_de_strings}"
+echo "$linea_log" >> Log_Process.txt
+palabra_completa=""
+done < salida.txt
