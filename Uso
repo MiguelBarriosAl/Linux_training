@@ -1,0 +1,6 @@
+Desde la shell de Linux:
+Ingresar en el directorio del script.
+Ejecutar script con el comando: ./Generate_Data.sh arg1 arg2
+Los resultados vienen dados en el fichero especificado en el arg1 y el fichero "Log_generate.txt"
+Ejecutar segundo script con el comando: ./Process_Data.sh
+Los resultados vienen dados en el fichero Process.txt y el fichero "Log_Process.txt"
